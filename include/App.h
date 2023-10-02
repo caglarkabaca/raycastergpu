@@ -59,7 +59,7 @@ int App::init()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
+    
     glfwSwapInterval(0);
     sheesh->init();
     return 0;

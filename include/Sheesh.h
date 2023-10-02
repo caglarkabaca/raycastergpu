@@ -3,11 +3,14 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <iostream>
 #include <math.h>
 
 const char *str_computeShader = R"(
-    #version 450
+    #version 450 core
     layout(local_size_x = 1, local_size_y = 1) in;
     layout(rgba32f, binding = 0) uniform image2D img_output;
     
@@ -19,12 +22,14 @@ const char *str_computeShader = R"(
         float datas[];
     };
 
+    layout(binding = 3, rgba32f) readonly uniform image2D wall_output;
+
     void main() {
 
         vec4 pixel = vec4(0.7, 0.4, 0.0, 1.0);
         uint x = gl_GlobalInvocationID.x;
-        int w = 1920;
-        int h = 1080;
+        int w = 512;
+        int h = 512;
 
         vec2 pos = vec2(datas[0], datas[1]);
         vec2 dir = vec2(datas[2], datas[3]);
@@ -122,21 +127,55 @@ const char *str_computeShader = R"(
         int drawEnd = lineHeight / 2 + h / 2;
         if(drawEnd >= h) drawEnd = h - 1;
 
-        switch (worldMap[mapX * 10 + mapY]) {
-            case 1:
-                pixel = vec4(1.0);
-                break;
-            case 2:
-                pixel = vec4(1.0, 0.0, 0.0, 1.0);
-                break;
-            default:
-                pixel = vec4(0.0, 1.0, 0.0, 1.0);
-                break;
+        // TEXTURE
+        ivec2 imgSize = imageSize(wall_output);
+        int texWidth = imgSize.x;
+        int texHeight = imgSize.y;
+
+        //calculate value of wallX
+        float wallX; //where exactly the wall was hit
+        if (side == 0) wallX = pos.y + perpWallDist * rayDirY;
+        else           wallX = pos.x + perpWallDist * rayDirX;
+        wallX -= floor((wallX));
+
+        //x coordinate on the texture
+        int texX = int(wallX * float(texWidth));
+        if(side == 0 && rayDirX > 0) texX = texWidth - texX - 1;
+        if(side == 1 && rayDirY < 0) texX = texWidth - texX - 1;
+
+        vec4 texture[1024];
+        for (int i = 0; i < texHeight; i++) {
+            texture[i] = imageLoad(wall_output, ivec2(texX, i));
         }
 
-        for (int i = drawStart; i < drawEnd; i++) {
-            imageStore(img_output, ivec2(x, i), pixel);
+        float step = 1.0 * texHeight / lineHeight;
+        // Starting texture coordinate
+        float texPos = (drawStart - h / 2 + lineHeight / 2) * step;
+        for(int y = drawStart; y < drawEnd; y++)
+        {
+            // Cast the texture coordinate to integer, and mask with (texHeight - 1) in case of overflow
+            int texY = int(texPos) & (texHeight - 1);
+            texPos += step;
+            vec3 color = texture[texY].rgb;
+            imageStore(img_output, ivec2(x, y), vec4(color, 1.0));
         }
+
+        // SADECE RENK
+        // switch (worldMap[mapX * 10 + mapY]) {
+        //     case 1:
+        //         pixel = vec4(1.0);
+        //         break;
+        //     case 2:
+        //         pixel = vec4(1.0, 0.0, 0.0, 1.0);
+        //         break;
+        //     default:
+        //         pixel = vec4(0.0, 1.0, 0.0, 1.0);
+        //         break;
+        // }
+
+        // for (int i = drawStart; i < drawEnd; i++) {
+        //     imageStore(img_output, ivec2(x, i), pixel);
+        // }
     }
 
 )";
@@ -195,6 +234,8 @@ int map[10][10] = {
 class Sheesh
 {
 private:
+    GLuint wall_output;
+
     GLuint tex_output;
     GLuint ray_program, quad_program;
     GLuint quad_vao;
@@ -208,7 +249,7 @@ private:
 public:
     float posX = 3, posY = 3;      // x and y start position
     float dirX = -1, dirY = 0;       // initial direction vector
-    float planeX = 0, planeY = 0.66; // the 2d raycaster version of camera plane
+    float planeX = 0, planeY = 0.44; // the 2d raycaster version of camera plane
 
     void init();
     void debugWorksizes();
@@ -284,8 +325,8 @@ void Sheesh::init()
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(double) * 6, datas, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-    tex_w = 1920;
-    tex_h = 1080;
+    tex_w = 640;
+    tex_h = 480;
     glGenTextures(1, &tex_output);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_output);
@@ -296,6 +337,32 @@ void Sheesh::init()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tex_w, tex_h, 0, GL_RGBA, GL_FLOAT,
                  NULL);
     glBindImageTexture(0, tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+    unsigned char* wallData;
+    int w, h, numC;
+    stbi_set_flip_vertically_on_load(true);
+    wallData = stbi_load("wall.png", &w, &h, &numC, 0);
+
+    if (!wallData)
+        std::cout << "walldata failed" << std::endl;
+    else
+        std::cout << "w: " << w << " h: " << h << " numC: " << numC << std::endl;
+
+    glGenTextures(1, &wall_output);
+    glBindTexture(GL_TEXTURE_2D, wall_output);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, wallData);
+    stbi_image_free(wallData);
+
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cout << "OpenGL Hata Kodu: " << error << std::endl;
+    }
+
+    glBindImageTexture(3, wall_output, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 
     debugWorksizes();
     initRayProgram();

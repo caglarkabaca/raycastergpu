@@ -3,7 +3,7 @@
 
 int main(void)
 {   
-    App app = App(1920, 1080);
+    App app = App(640, 480);
     if (app.init() == -1) {
         std::cout << "App init err" << std::endl;
         return -1;
