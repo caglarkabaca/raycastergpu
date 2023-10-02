@@ -11,6 +11,9 @@ include_directories(external/glad/include)
 include_directories(./include)
 file(GLOB SOURCES src/*.cpp external/glad/src/glad.c)
 
+file(GLOB ASSETS "assets/*")
+file(COPY ${ASSETS} DESTINATION ${CMAKE_BINARY_DIR})
+
 add_executable(test ${SOURCES})
 
 message(STATUS ${LIBS})
