@@ -6,14 +6,14 @@
 #include <iostream>
 #include <cstdint>
 
-#include "Sheesh.h"
+#include "Game.h"
 
 class App
 {
 private:
     GLFWwindow *window;
     int w, h;
-    Sheesh* sheesh;
+    Game* game;
 public:
     App(int _w, int _h);
     ~App();
@@ -25,12 +25,12 @@ App::App(int _w, int _h)
 {
     w = _w;
     h = _h;
-    sheesh = new Sheesh();
+    game = new Game();
 }
 
 App::~App()
 {
-    delete sheesh;
+    delete game;
     if (window)
         glfwDestroyWindow(window);
     glfwTerminate();
@@ -61,7 +61,7 @@ int App::init()
     }
     
     glfwSwapInterval(0);
-    sheesh->init();
+    game->init(w, h);
     return 0;
 }
 
@@ -90,7 +90,7 @@ void App::loop()
             /* Render here */
 
             glClear(GL_COLOR_BUFFER_BIT);
-            sheesh->loop();
+            game->loop();
             /* Swap front and back buffers */
             glfwSwapBuffers(window);
 
@@ -107,19 +107,19 @@ void App::loop()
         glfwPollEvents();
         double frameTime = glfwGetTime() - currentTime;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            sheesh->move(SHEESH_ILERI, frameTime);
+            game->move(SHEESH_ILERI, frameTime);
             should_reflesh = true;
         }
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            sheesh->move(SHEESH_GERI, frameTime);
+            game->move(SHEESH_GERI, frameTime);
             should_reflesh = true;
         }
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            sheesh->move(SHEESH_SAG, frameTime);
+            game->move(SHEESH_SAG, frameTime);
             should_reflesh = true;
         }
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            sheesh->move(SHEESH_SOL, frameTime);
+            game->move(SHEESH_SOL, frameTime);
             should_reflesh = true;
         }
     }

@@ -49,7 +49,7 @@ int map[10][10] = {
 #define SHEESH_SAG 2
 #define SHEESH_SOL 3
 
-class Sheesh
+class Game
 {
 private:
     GLuint wall_output;
@@ -67,17 +67,20 @@ private:
 public:
     float posX = 3, posY = 3;      // x and y start position
     float dirX = -1, dirY = 0;       // initial direction vector
-    float planeX = 0, planeY = 0.44; // the 2d raycaster version of camera plane
+    float planeX = 0, planeY = 0.85; // the 2d raycaster version of camera plane
 
-    void init();
+    void init(int _w, int _h);
     void debugWorksizes();
     void initRayProgram();
     void loop();
     void move(int dir, double frameTime);
 };
 
-void Sheesh::init()
+void Game::init(int _w, int _h)
 {
+    tex_w = _w;
+    tex_h = _h;
+
     datas = (float*)calloc(6, sizeof(float));
     datas[0] = posX;
     datas[1] = posY;
@@ -143,8 +146,6 @@ void Sheesh::init()
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(double) * 6, datas, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-    tex_w = 640;
-    tex_h = 480;
     glGenTextures(1, &tex_output);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_output);
@@ -157,14 +158,9 @@ void Sheesh::init()
     glBindImageTexture(0, tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
     unsigned char* wallData;
-    int w, h, numC;
+    int tw, th, tnumC;
     stbi_set_flip_vertically_on_load(true);
-    wallData = stbi_load("wall.png", &w, &h, &numC, 0);
-
-    if (!wallData)
-        std::cout << "walldata failed" << std::endl;
-    else
-        std::cout << "w: " << w << " h: " << h << " numC: " << numC << std::endl;
+    wallData = stbi_load("wall.png", &tw, &th, &tnumC, 0);
 
     glGenTextures(1, &wall_output);
     glBindTexture(GL_TEXTURE_2D, wall_output);
@@ -172,7 +168,7 @@ void Sheesh::init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, wallData);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tw, th, 0, GL_RGB, GL_UNSIGNED_BYTE, wallData);
     stbi_image_free(wallData);
 
     GLenum error = glGetError();
@@ -186,7 +182,7 @@ void Sheesh::init()
     initRayProgram();
 }
 
-void Sheesh::debugWorksizes()
+void Game::debugWorksizes()
 {
     int work_grp_cnt[3];
 
@@ -207,7 +203,7 @@ void Sheesh::debugWorksizes()
     std::cout << "max local work group invocations " << buffer << std::endl;
 }
 
-void Sheesh::initRayProgram()
+void Game::initRayProgram()
 {
     GLuint ray_shader = glCreateShader(GL_COMPUTE_SHADER);
     glShaderSource(ray_shader, 1, &str_computeShader, NULL);
@@ -233,7 +229,7 @@ void Sheesh::initRayProgram()
     glDeleteShader(ray_shader);
 }
 
-void Sheesh::loop()
+void Game::loop()
 {
     glClearTexImage(tex_output, 0, GL_RGBA, GL_FLOAT, NULL);
 
@@ -250,7 +246,7 @@ void Sheesh::loop()
     }
 }
 
-void Sheesh::move(int dir, double frameTime) {
+void Game::move(int dir, double frameTime) {
     double moveSpeed = 1.2f * frameTime;
     double rotSpeed = 1.4f * frameTime;
     switch (dir) {

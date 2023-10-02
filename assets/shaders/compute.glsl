@@ -14,10 +14,10 @@ layout(binding = 3, rgba32f) readonly uniform image2D wall_output;
 
 void main() {
 
+    int w = 640;
+    int h = 480;
     vec4 pixel = vec4(0.7, 0.4, 0.0, 1.0);
     uint x = gl_GlobalInvocationID.x;
-    int w = 512;
-    int h = 512;
 
     vec2 pos = vec2(datas[0], datas[1]);
     vec2 dir = vec2(datas[2], datas[3]);
