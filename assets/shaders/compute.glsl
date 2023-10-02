@@ -164,4 +164,58 @@ void main() {
     // for (int i = drawStart; i < drawEnd; i++) {
     //     imageStore(img_output, ivec2(x, i), pixel);
     // }
+
+    // FLOOR - CEILING
+
+    //FLOOR CASTING (vertical version, directly after drawing the vertical wall stripe for the current x)
+    float floorXWall, floorYWall; //x, y position of the floor texel at the bottom of the wall
+
+    //4 different wall directions possible
+    if(side == 0 && rayDirX > 0)
+    {
+        floorXWall = mapX;
+        floorYWall = mapY + wallX;
+    }
+    else if(side == 0 && rayDirX < 0)
+    {
+        floorXWall = mapX + 1.0;
+        floorYWall = mapY + wallX;
+    }
+    else if(side == 1 && rayDirY > 0)
+    {
+        floorXWall = mapX + wallX;
+        floorYWall = mapY;
+    }
+    else
+    {
+        floorXWall = mapX + wallX;
+        floorYWall = mapY + 1.0;
+    }
+
+    float distWall, distPlayer, currentDist;
+    distWall = perpWallDist;
+    distPlayer = 0.0;
+
+    if (drawEnd < 0) drawEnd = h; //becomes < 0 when the integer overflows
+
+    //draw the floor from drawEnd to the bottom of the screen
+    for(int y = drawEnd; y < h; y++)
+    {
+        currentDist = h / (2.0 * y - h); //you could make a small lookup table for this instead
+
+        float weight = (currentDist - distPlayer) / (distWall - distPlayer);
+
+        float currentFloorX = weight * floorXWall + (1.0 - weight) * pos.x;
+        float currentFloorY = weight * floorYWall + (1.0 - weight) * pos.y;
+
+        int floorTexX, floorTexY;
+        floorTexX = int(currentFloorX * texWidth) % texWidth;
+        floorTexY = int(currentFloorY * texHeight) % texHeight;
+
+        vec3 fcolor = imageLoad(wall_output, ivec2(floorTexX, floorTexY)).rgb;
+        imageStore(img_output, ivec2(x, y), vec4(fcolor, 1.0));
+
+        imageStore(img_output, ivec2(x, h - y), vec4(fcolor * 0.8, 1.0));
+    }
+
 }
